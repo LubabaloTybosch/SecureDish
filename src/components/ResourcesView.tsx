@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { ResourceItem, UserPlan, UserProfile } from "../types";
+import { FALLBACK_RESOURCES } from "../data/fallbackData";
 import {
   Search,
   BookOpen,
@@ -40,10 +41,17 @@ export default function ResourcesView({
     const fetchResources = async () => {
       try {
         const response = await fetch("/api/resources");
-        const json = await response.json();
-        setResources(json.resources || []);
+        if (response.ok) {
+          const json = await response.json();
+          if (json.resources && json.resources.length > 0) {
+            setResources(json.resources);
+            return;
+          }
+        }
+        setResources(FALLBACK_RESOURCES);
       } catch (err) {
-        console.error("Error fetching resources:", err);
+        console.error("Error fetching resources, using fallback:", err);
+        setResources(FALLBACK_RESOURCES);
       } finally {
         setLoading(false);
       }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Markdown from "react-markdown";
 import { Course, Lesson, UserPlan } from "../types";
+import { FALLBACK_COURSES } from "../data/fallbackData";
 import {
   BookOpen,
   Clock,
@@ -58,10 +59,17 @@ export default function CoursesView({ userPlan, setUserPlan }: CoursesViewProps)
     const fetchCourses = async () => {
       try {
         const response = await fetch("/api/courses");
-        const json = await response.json();
-        setCourses(json.courses || []);
+        if (response.ok) {
+          const json = await response.json();
+          if (json.courses && json.courses.length > 0) {
+            setCourses(json.courses);
+            return;
+          }
+        }
+        setCourses(FALLBACK_COURSES);
       } catch (err) {
-        console.error("Error fetching courses:", err);
+        console.error("Error fetching courses, using fallback:", err);
+        setCourses(FALLBACK_COURSES);
       } finally {
         setLoading(false);
       }

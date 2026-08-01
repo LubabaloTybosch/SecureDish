@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { ActiveView, SupplyDataPoint, RiskAlert, QuickStats, RegionDataPoint } from "../types";
+import { FALLBACK_DASHBOARD } from "../data/fallbackData";
 import {
   Activity,
   AlertTriangle,
@@ -44,10 +45,17 @@ export default function DashboardView({ setActiveView }: DashboardViewProps) {
     setLoading(true);
     try {
       const response = await fetch("/api/dashboard");
-      const json = await response.json();
-      setData(json);
+      if (response.ok) {
+        const json = await response.json();
+        if (json.supplyData) {
+          setData(json);
+          return;
+        }
+      }
+      setData(FALLBACK_DASHBOARD);
     } catch (err) {
-      console.error("Error fetching dashboard data:", err);
+      console.error("Error fetching dashboard data, using fallback:", err);
+      setData(FALLBACK_DASHBOARD);
     } finally {
       setLoading(false);
     }
