@@ -1,0 +1,6 @@
+{
+  "name": "SecureDish",
+  "description": "An integrated Food Security Platform with learning management, supply monitoring, and risk intelligence.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-sage: #5f7a61;
+  --color-sage-light: #8fa890;
+  --color-sage-dark: #3e5240;
+  --color-charcoal: #1e2522;
+  --color-charcoal-light: #3e4844;
+  --color-sand: #fbfbf8;
+  --color-sand-dark: #f0efe6;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-sand);
+    color: var(--color-charcoal);
+  }
+}
+
+/* Custom visual styles */
+.glass-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(224, 224, 215, 0.5);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card:hover {
+  border-color: rgba(95, 122, 97, 0.3);
+  box-shadow: 0 10px 30px -15px rgba(30, 37, 34, 0.08);
+}
+
+.kinetic-lift {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.kinetic-lift:hover {
+  transform: translateY(-4px);
+}
