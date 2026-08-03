@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { ActiveView, SupplyDataPoint, RiskAlert, QuickStats, RegionDataPoint } from "../types";
-import { FALLBACK_DASHBOARD } from "../data/fallbackData";
+import { FALLBACK_DASHBOARD, FALLBACK_DASHBOARD_BY_YEAR } from "../data/fallbackData";
 import {
   Activity,
   AlertTriangle,
@@ -12,7 +12,8 @@ import {
   Sparkles,
   RefreshCw,
   Clock,
-  ArrowRight
+  ArrowRight,
+  Calendar
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -30,6 +31,7 @@ interface DashboardViewProps {
 }
 
 export default function DashboardView({ setActiveView }: DashboardViewProps) {
+  const [selectedYear, setSelectedYear] = useState<"2026" | "2025" | "2024">("2026");
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<{
     supplyData: SupplyDataPoint[];
@@ -41,10 +43,10 @@ export default function DashboardView({ setActiveView }: DashboardViewProps) {
   const [aiAnalysis, setAiAnalysis] = useState<string>("");
   const [generatingAi, setGeneratingAi] = useState(false);
 
-  const fetchData = async () => {
+  const fetchData = async (year: string = selectedYear) => {
     setLoading(true);
     try {
-      const response = await fetch("/api/dashboard");
+      const response = await fetch(`/api/dashboard?year=${year}`);
       if (response.ok) {
         const json = await response.json();
         if (json.supplyData) {
@@ -52,18 +54,48 @@ export default function DashboardView({ setActiveView }: DashboardViewProps) {
           return;
         }
       }
-      setData(FALLBACK_DASHBOARD);
+      setData(FALLBACK_DASHBOARD_BY_YEAR[year] || FALLBACK_DASHBOARD);
     } catch (err) {
       console.error("Error fetching dashboard data, using fallback:", err);
-      setData(FALLBACK_DASHBOARD);
+      setData(FALLBACK_DASHBOARD_BY_YEAR[year] || FALLBACK_DASHBOARD);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    fetchData(selectedYear);
+  }, [selectedYear]);
+
+  const handleYearChange = (year: "2026" | "2025" | "2024") => {
+    setSelectedYear(year);
+  };
+
+  const generateRiskAssessmentReport = (year: string, currentData: typeof data) => {
+    if (!currentData) return "";
+    const supplyIndex = currentData.quickStats.totalSupplyIndex;
+    const activeRisksCount = currentData.quickStats.activeRisks;
+    const regions = currentData.regionData || [];
+    const lowestRegion = [...regions].sort((a, b) => a.supply - b.supply)[0];
+    const highestRegion = [...regions].sort((a, b) => b.supply - a.supply)[0];
+
+    const alertsSummary = currentData.riskAlerts && currentData.riskAlerts.length > 0
+      ? currentData.riskAlerts.map(a => `• [${a.severity.toUpperCase()}] ${a.title} (${a.region}): ${a.message}`).join("\n")
+      : "• No critical disruptions recorded for this period.";
+
+    return `Executive Risk Synthesis & Early Warning Report (${year})
+
+1. Overall Supply Vulnerability Index:
+The global aggregate food supply health score for ${year} stands at ${supplyIndex}%. Baseline output in ${highestRegion?.region || "North America"} remains strong (${highestRegion?.supply || 90}%), while ${lowestRegion?.region || "East Africa"} exhibits elevated stress levels at ${lowestRegion?.supply || 52}% capacity.
+
+2. Active Vulnerability Vectors (${activeRisksCount} Logged Events):
+${alertsSummary}
+
+3. Strategic Action Plan (${year}):
+• Prioritize climate-adaptive seed distribution in vulnerable zones (${lowestRegion?.region || "East Africa"}).
+• Fortify cold-chain logistics and multi-route transport buffers to mitigate port delays.
+• Deploy precision fertilizer allocation & emergency grain reserve funds for immediate stabilization.`;
+  };
 
   const triggerAiAnalysis = async () => {
     if (generatingAi) return;
@@ -77,16 +109,24 @@ export default function DashboardView({ setActiveView }: DashboardViewProps) {
           messages: [
             {
               sender: "user",
-              content: "Please perform a comprehensive risk assessment based on current regional indices and active alerts.",
+              content: `Please perform a comprehensive risk assessment for reporting year ${selectedYear} based on regional indices and active alerts.`,
             },
           ],
         }),
       });
-      const resData = await response.json();
-      setAiAnalysis(resData.text || "Analysis complete.");
+
+      if (response.ok) {
+        const resData = await response.json();
+        if (resData && resData.text) {
+          setAiAnalysis(resData.text);
+          return;
+        }
+      }
+      // Fallback if response is not OK or resData.text is missing
+      setAiAnalysis(generateRiskAssessmentReport(selectedYear, data));
     } catch (err) {
-      console.error("AI Analysis failed:", err);
-      setAiAnalysis("Failed to generate risk synthesis. Please check your Gemini connection or retry.");
+      console.error("AI Analysis API call failed, using local risk synthesis engine:", err);
+      setAiAnalysis(generateRiskAssessmentReport(selectedYear, data));
     } finally {
       setGeneratingAi(false);
     }
@@ -96,7 +136,7 @@ export default function DashboardView({ setActiveView }: DashboardViewProps) {
     return (
       <div className="flex min-h-[400px] flex-col items-center justify-center gap-4 text-charcoal">
         <RefreshCw className="h-8 w-8 animate-spin text-sage" />
-        <p className="text-sm font-medium animate-pulse">Loading dashboard data...</p>
+        <p className="text-sm font-medium animate-pulse">Loading dashboard data for {selectedYear}...</p>
       </div>
     );
   }
@@ -108,21 +148,79 @@ export default function DashboardView({ setActiveView }: DashboardViewProps) {
       {/* Upper header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl md:text-3xl font-extrabold tracking-tight text-charcoal">
-            Security Intelligence Dashboard
-          </h1>
-          <p className="text-charcoal-light text-sm mt-1">
-            Real-time food supply monitoring and risk intelligence overview.
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className="font-display text-2xl md:text-3xl font-extrabold tracking-tight text-charcoal">
+              Security Intelligence Dashboard
+            </h1>
+            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-extrabold ${
+              selectedYear === "2026" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"
+            }`}>
+              {selectedYear === "2026" ? "2026 (Live)" : `${selectedYear} Historical`}
+            </span>
+          </div>
+          <p className="text-charcoal-light text-sm">
+            Food supply monitoring, regional vulnerability index, and risk intelligence analytics.
           </p>
         </div>
         <button
           id="refresh-dash-btn"
-          onClick={fetchData}
+          onClick={() => fetchData(selectedYear)}
           className="inline-flex items-center gap-2 self-start md:self-auto rounded-lg border border-sage/15 bg-white px-4 py-2 text-sm font-semibold text-charcoal shadow-sm transition hover:bg-sand-dark focus:outline-none"
         >
           <RefreshCw className="h-4 w-4" />
-          Sync Live Feeds
+          Sync Feeds ({selectedYear})
         </button>
+      </div>
+
+      {/* Year Filter Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/80 backdrop-blur border border-sand-dark p-4 rounded-2xl shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sage/10 text-sage shrink-0">
+            <Calendar className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-charcoal-light uppercase tracking-wider">Reporting Period Filter</span>
+              {selectedYear === "2026" ? (
+                <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
+                  Current Reporting Year
+                </span>
+              ) : (
+                <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200">
+                  Previous Year Archive
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-charcoal font-medium mt-0.5">
+              {selectedYear === "2026" 
+                ? "Displaying active live telemetry, current commodity availability, and 2026 threat profiles."
+                : `Filtered to historical data stream, archived risk events, and regional metrics for ${selectedYear}.`}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+          <span className="text-xs font-bold text-charcoal-light mr-1">Year:</span>
+          <div className="inline-flex p-1 rounded-xl bg-sand-dark/60 border border-sand-dark">
+            {(["2026", "2025", "2024"] as const).map((yr) => {
+              const isActive = selectedYear === yr;
+              return (
+                <button
+                  key={yr}
+                  id={`year-filter-${yr}`}
+                  onClick={() => handleYearChange(yr)}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    isActive
+                      ? "bg-sage text-white shadow-sm"
+                      : "text-charcoal hover:bg-white/80"
+                  }`}
+                >
+                  {yr === "2026" ? "2026 (Current)" : yr}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Grid of 4 stats */}
@@ -139,16 +237,18 @@ export default function DashboardView({ setActiveView }: DashboardViewProps) {
             <span className="text-3xl font-bold text-charcoal">{quickStats.totalSupplyIndex}%</span>
             <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
               <TrendingUp className="h-3 w-3" />
-              Healthy
+              {selectedYear === "2026" ? "Healthy" : "Recorded"}
             </span>
           </div>
-          <p className="text-xs text-charcoal-light/70 mt-2">Weighted regional capacity index</p>
+          <p className="text-xs text-charcoal-light/70 mt-2">{selectedYear} weighted regional index</p>
         </div>
 
         {/* Active Risks */}
         <div className="glass-card rounded-2xl p-6 relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-charcoal-light">Active Risk Alerts</span>
+            <span className="text-sm font-medium text-charcoal-light">
+              {selectedYear === "2026" ? "Active Risk Alerts" : "Risk Events Logged"}
+            </span>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600">
               <AlertTriangle className="h-5 w-5" />
             </div>
@@ -156,10 +256,10 @@ export default function DashboardView({ setActiveView }: DashboardViewProps) {
           <div className="mt-4 flex items-baseline gap-2">
             <span className="text-3xl font-bold text-charcoal">{quickStats.activeRisks}</span>
             <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
-              Monitored
+              {selectedYear === "2026" ? "Monitored" : "Archived"}
             </span>
           </div>
-          <p className="text-xs text-charcoal-light/70 mt-2">Early-warning threat profiles</p>
+          <p className="text-xs text-charcoal-light/70 mt-2">{selectedYear} threat profiles</p>
         </div>
 
         {/* Regions Monitored */}
@@ -173,10 +273,10 @@ export default function DashboardView({ setActiveView }: DashboardViewProps) {
           <div className="mt-4 flex items-baseline gap-2">
             <span className="text-3xl font-bold text-charcoal">{quickStats.regionsMonitored}</span>
             <span className="inline-flex items-center gap-0.5 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
-              Active
+              {selectedYear === "2026" ? "Active" : "Logged"}
             </span>
           </div>
-          <p className="text-xs text-charcoal-light/70 mt-2">Reporting data nodes globally</p>
+          <p className="text-xs text-charcoal-light/70 mt-2">Global telemetry nodes ({selectedYear})</p>
         </div>
 
         {/* Training Completed */}
@@ -193,7 +293,7 @@ export default function DashboardView({ setActiveView }: DashboardViewProps) {
               Issued
             </span>
           </div>
-          <p className="text-xs text-charcoal-light/70 mt-2">Open academy completions</p>
+          <p className="text-xs text-charcoal-light/70 mt-2">Academy completions in {selectedYear}</p>
         </div>
       </div>
 
@@ -203,8 +303,13 @@ export default function DashboardView({ setActiveView }: DashboardViewProps) {
         <div className="lg:col-span-2 glass-card rounded-2xl p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between border-b border-sand-dark pb-4 mb-6">
             <div>
-              <h2 className="text-lg font-bold text-charcoal">Global Commodity Indices</h2>
-              <p className="text-xs text-charcoal-light">Year-to-date monthly availability tracking</p>
+              <h2 className="text-lg font-bold text-charcoal flex items-center gap-2">
+                Global Commodity Indices
+                <span className="text-xs font-extrabold text-sage bg-sage/10 px-2 py-0.5 rounded-md">
+                  {selectedYear}
+                </span>
+              </h2>
+              <p className="text-xs text-charcoal-light">Monthly food availability tracking for {selectedYear}</p>
             </div>
             <div className="flex gap-2 text-xs">
               <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500"></span> Grains</span>
@@ -366,58 +471,71 @@ export default function DashboardView({ setActiveView }: DashboardViewProps) {
         </div>
 
         {/* AI Synthesis Column */}
-        <div className="glass-card rounded-2xl p-6 flex flex-col justify-between bg-charcoal text-white relative overflow-hidden">
+        <div className="rounded-2xl p-6 flex flex-col justify-between bg-charcoal text-white border border-sage/30 shadow-xl relative overflow-hidden">
           {/* Subtle cosmic light effect */}
-          <div className="absolute top-0 right-0 -z-0 h-40 w-40 rounded-full bg-sage-light/10 blur-2xl" />
+          <div className="absolute top-0 right-0 -z-0 h-40 w-40 rounded-full bg-sage/20 blur-2xl" />
 
           <div className="relative z-10">
-            <div className="flex items-center gap-2 border-b border-white/10 pb-4 mb-5">
-              <div className="h-8 w-8 rounded-lg bg-sage/20 flex items-center justify-center text-sage-light">
+            <div className="flex items-center gap-2 border-b border-white/15 pb-4 mb-5">
+              <div className="h-8 w-8 rounded-lg bg-sage/30 flex items-center justify-center text-emerald-300 shadow-sm">
                 <Sparkles className="h-4.5 w-4.5" />
               </div>
               <div>
-                <h3 className="text-base font-bold">AI Risk Intelligence</h3>
-                <p className="text-[10px] text-white/60">Generate real-time early warning summaries</p>
+                <h3 className="text-base font-bold text-white tracking-wide">AI Risk Intelligence</h3>
+                <p className="text-[10px] text-emerald-200/80">Real-time early warning assessment report</p>
               </div>
             </div>
 
             {aiAnalysis ? (
-              <div className="text-xs leading-relaxed text-white/80 space-y-3 max-h-[220px] overflow-y-auto pr-1">
-                {aiAnalysis.split("\n\n").map((para, i) => (
-                  <p key={i}>{para}</p>
-                ))}
+              <div className="text-xs leading-relaxed text-sand-dark space-y-3.5 max-h-[260px] overflow-y-auto pr-2 custom-scrollbar">
+                {aiAnalysis.split("\n\n").map((para, i) => {
+                  const isHeading = para.match(/^(\d+\.|[A-Z\s]{4,}:|Executive)/);
+                  return (
+                    <div key={i} className="text-sand/95 font-normal leading-relaxed">
+                      {isHeading ? (
+                        <p className="whitespace-pre-line text-emerald-300 font-bold text-xs tracking-wide">
+                          {para}
+                        </p>
+                      ) : (
+                        <p className="whitespace-pre-line text-emerald-50/90 font-medium text-xs leading-relaxed">
+                          {para}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <div className="py-8 flex flex-col items-center text-center gap-3">
-                <Sparkles className="h-10 w-10 text-sage-light animate-pulse" />
-                <p className="text-xs text-white/70 max-w-xs leading-relaxed">
-                  Synthesize current regional indices, threat streams, and climate volatility into an early-warning report.
+                <Sparkles className="h-10 w-10 text-emerald-400 animate-pulse" />
+                <p className="text-xs text-emerald-100/80 max-w-xs leading-relaxed font-medium">
+                  Synthesize regional indices, threat streams, and climate volatility into an early-warning risk report.
                 </p>
               </div>
             )}
           </div>
 
-          <div className="relative z-10 pt-4 border-t border-white/10 mt-5">
+          <div className="relative z-10 pt-4 border-t border-white/15 mt-5">
             <button
               id="dash-gen-ai-btn"
               onClick={triggerAiAnalysis}
               disabled={generatingAi}
-              className="group flex w-full items-center justify-center gap-2 rounded-xl bg-sage hover:bg-sage-light px-4 py-3 text-sm font-semibold text-white shadow-md transition-all focus:outline-none disabled:opacity-50"
+              className="group flex w-full items-center justify-center gap-2 rounded-xl bg-sage hover:bg-sage-light text-white font-semibold py-3 text-sm shadow-lg transition-all focus:outline-none disabled:opacity-50 active:scale-[0.99]"
             >
               {generatingAi ? (
                 <>
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  Synthesizing Indicators...
+                  <RefreshCw className="h-4 w-4 animate-spin text-white" />
+                  <span className="text-white">Synthesizing Indicators...</span>
                 </>
               ) : aiAnalysis ? (
                 <>
-                  <RefreshCw className="h-4 w-4" />
-                  Regenerate Report
+                  <RefreshCw className="h-4 w-4 text-white" />
+                  <span className="text-white">Regenerate Assessment</span>
                 </>
               ) : (
                 <>
-                  Generate AI Assessment
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  <span className="text-white">Generate AI Assessment</span>
+                  <ArrowRight className="h-4 w-4 text-white transition-transform group-hover:translate-x-1" />
                 </>
               )}
             </button>
@@ -425,7 +543,7 @@ export default function DashboardView({ setActiveView }: DashboardViewProps) {
               <button
                 id="dash-go-chat-btn"
                 onClick={() => setActiveView("chat")}
-                className="mt-2.5 flex w-full items-center justify-center gap-1.5 text-xs font-semibold text-sage-light hover:text-white transition-colors"
+                className="mt-2.5 flex w-full items-center justify-center gap-1.5 text-xs font-bold text-emerald-300 hover:text-white transition-colors"
               >
                 Discuss assessment with AI Advisor
               </button>

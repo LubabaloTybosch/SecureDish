@@ -35,88 +35,249 @@ function getAiClient() {
 
 // 1. Dashboard API Route
 app.get("/api/dashboard", (req, res) => {
-  res.json({
-    supplyData: [
-      { month: "Jan", grains: 78, vegetables: 85, dairy: 72, proteins: 68 },
-      { month: "Feb", grains: 80, vegetables: 82, dairy: 74, proteins: 70 },
-      { month: "Mar", grains: 76, vegetables: 88, dairy: 71, proteins: 65 },
-      { month: "Apr", grains: 82, vegetables: 90, dairy: 76, proteins: 72 },
-      { month: "May", grains: 85, vegetables: 92, dairy: 78, proteins: 74 },
-      { month: "Jun", grains: 83, vegetables: 89, dairy: 80, proteins: 76 },
-      { month: "Jul", grains: 79, vegetables: 86, dairy: 77, proteins: 71 },
-      { month: "Aug", grains: 81, vegetables: 91, dairy: 79, proteins: 73 },
-      { month: "Sep", grains: 84, vegetables: 93, dairy: 81, proteins: 75 },
-      { month: "Oct", grains: 87, vegetables: 95, dairy: 83, proteins: 78 },
-      { month: "Nov", grains: 86, vegetables: 94, dairy: 82, proteins: 77 },
-      { month: "Dec", grains: 89, vegetables: 96, dairy: 85, proteins: 80 }
-    ],
-    riskAlerts: [
-      {
-        id: "1",
-        title: "Drought Warning — East Africa",
-        severity: "high",
-        region: "East Africa",
-        message: "Prolonged drought conditions expected to reduce cereal yields by 15-20% in the coming quarter.",
-        status: "active",
-        createdAt: "2026-07-18"
+  const year = (req.query.year as string) || "2026";
+
+  const dashboards: Record<string, any> = {
+    "2026": {
+      supplyData: [
+        { month: "Jan", grains: 78, vegetables: 85, dairy: 72, proteins: 68 },
+        { month: "Feb", grains: 80, vegetables: 82, dairy: 74, proteins: 70 },
+        { month: "Mar", grains: 76, vegetables: 88, dairy: 71, proteins: 65 },
+        { month: "Apr", grains: 82, vegetables: 90, dairy: 76, proteins: 72 },
+        { month: "May", grains: 85, vegetables: 92, dairy: 78, proteins: 74 },
+        { month: "Jun", grains: 83, vegetables: 89, dairy: 80, proteins: 76 },
+        { month: "Jul", grains: 79, vegetables: 86, dairy: 77, proteins: 71 },
+        { month: "Aug", grains: 81, vegetables: 91, dairy: 79, proteins: 73 },
+        { month: "Sep", grains: 84, vegetables: 93, dairy: 81, proteins: 75 },
+        { month: "Oct", grains: 87, vegetables: 95, dairy: 83, proteins: 78 },
+        { month: "Nov", grains: 86, vegetables: 94, dairy: 82, proteins: 77 },
+        { month: "Dec", grains: 89, vegetables: 96, dairy: 85, proteins: 80 }
+      ],
+      riskAlerts: [
+        {
+          id: "1",
+          title: "Drought Warning — East Africa",
+          severity: "high",
+          region: "East Africa",
+          message: "Prolonged drought conditions expected to reduce cereal yields by 15-20% in the coming quarter.",
+          status: "active",
+          createdAt: "2026-07-18"
+        },
+        {
+          id: "2",
+          title: "Supply Chain Disruption — Southeast Asia",
+          severity: "medium",
+          region: "Southeast Asia",
+          message: "Port congestion causing 10-day delays in rice shipments from major exporters.",
+          status: "active",
+          createdAt: "2026-07-17"
+        },
+        {
+          id: "3",
+          title: "Fertilizer Shortage — South America",
+          severity: "high",
+          region: "South America",
+          message: "Reduced fertilizer availability may impact soybean production forecasts for next season.",
+          status: "active",
+          createdAt: "2026-07-16"
+        },
+        {
+          id: "4",
+          title: "Record Harvest — Western Europe",
+          severity: "low",
+          region: "Western Europe",
+          message: "Wheat production exceeds projections by 8%, strengthening regional food security outlook.",
+          status: "active",
+          createdAt: "2026-07-15"
+        },
+        {
+          id: "5",
+          title: "Pest Infestation Risk — Central Asia",
+          severity: "medium",
+          region: "Central Asia",
+          message: "Locust monitoring indicates elevated risk in steppe regions. Preventive measures recommended.",
+          status: "active",
+          createdAt: "2026-07-14"
+        }
+      ],
+      quickStats: {
+        totalSupplyIndex: 82,
+        activeRisks: 3,
+        regionsMonitored: 47,
+        coursesCompleted: 12,
+        courseProgress: [
+          { id: "c1", title: "Sustainable Agriculture Basics", progress: 75, total: 8, completed: 6 },
+          { id: "c2", title: "Supply Chain Resilience", progress: 40, total: 10, completed: 4 },
+          { id: "c3", title: "Climate Adaptation Strategies", progress: 100, total: 6, completed: 6 }
+        ]
       },
-      {
-        id: "2",
-        title: "Supply Chain Disruption — Southeast Asia",
-        severity: "medium",
-        region: "Southeast Asia",
-        message: "Port congestion causing 10-day delays in rice shipments from major exporters.",
-        status: "active",
-        createdAt: "2026-07-17"
-      },
-      {
-        id: "3",
-        title: "Fertilizer Shortage — South America",
-        severity: "high",
-        region: "South America",
-        message: "Reduced fertilizer availability may impact soybean production forecasts for next season.",
-        status: "active",
-        createdAt: "2026-07-16"
-      },
-      {
-        id: "4",
-        title: "Record Harvest — Western Europe",
-        severity: "low",
-        region: "Western Europe",
-        message: "Wheat production exceeds projections by 8%, strengthening regional food security outlook.",
-        status: "active",
-        createdAt: "2026-07-15"
-      },
-      {
-        id: "5",
-        title: "Pest Infestation Risk — Central Asia",
-        severity: "medium",
-        region: "Central Asia",
-        message: "Locust monitoring indicates elevated risk in steppe regions. Preventive measures recommended.",
-        status: "active",
-        createdAt: "2026-07-14"
-      }
-    ],
-    quickStats: {
-      totalSupplyIndex: 82,
-      activeRisks: 3,
-      regionsMonitored: 47,
-      coursesCompleted: 12,
-      courseProgress: [
-        { id: "c1", title: "Sustainable Agriculture Basics", progress: 75, total: 8, completed: 6 },
-        { id: "c2", title: "Supply Chain Resilience", progress: 40, total: 10, completed: 4 },
-        { id: "c3", title: "Climate Adaptation Strategies", progress: 100, total: 6, completed: 6 }
+      regionData: [
+        { region: "North America", supply: 91, trend: "up" },
+        { region: "Europe", supply: 87, trend: "up" },
+        { region: "East Africa", supply: 52, trend: "down" },
+        { region: "South Asia", supply: 68, trend: "stable" },
+        { region: "South America", supply: 74, trend: "down" },
+        { region: "Southeast Asia", supply: 71, trend: "stable" }
       ]
     },
-    regionData: [
-      { region: "North America", supply: 91, trend: "up" },
-      { region: "Europe", supply: 87, trend: "up" },
-      { region: "East Africa", supply: 52, trend: "down" },
-      { region: "South Asia", supply: 68, trend: "stable" },
-      { region: "South America", supply: 74, trend: "down" },
-      { region: "Southeast Asia", supply: 71, trend: "stable" }
-    ]
-  });
+    "2025": {
+      supplyData: [
+        { month: "Jan", grains: 73, vegetables: 79, dairy: 68, proteins: 64 },
+        { month: "Feb", grains: 75, vegetables: 81, dairy: 70, proteins: 66 },
+        { month: "Mar", grains: 71, vegetables: 83, dairy: 67, proteins: 62 },
+        { month: "Apr", grains: 77, vegetables: 85, dairy: 72, proteins: 68 },
+        { month: "May", grains: 80, vegetables: 87, dairy: 74, proteins: 70 },
+        { month: "Jun", grains: 78, vegetables: 84, dairy: 75, proteins: 71 },
+        { month: "Jul", grains: 74, vegetables: 80, dairy: 71, proteins: 66 },
+        { month: "Aug", grains: 76, vegetables: 85, dairy: 73, proteins: 68 },
+        { month: "Sep", grains: 79, vegetables: 88, dairy: 76, proteins: 70 },
+        { month: "Oct", grains: 82, vegetables: 90, dairy: 78, proteins: 73 },
+        { month: "Nov", grains: 81, vegetables: 89, dairy: 77, proteins: 72 },
+        { month: "Dec", grains: 84, vegetables: 91, dairy: 80, proteins: 75 }
+      ],
+      riskAlerts: [
+        {
+          id: "2025-1",
+          title: "Heatwave Warning — Southern Europe",
+          severity: "high",
+          region: "Southern Europe",
+          message: "Extreme summer temperatures reduced olive and tomato crop yields by 18%.",
+          status: "resolved",
+          createdAt: "2025-08-12"
+        },
+        {
+          id: "2025-2",
+          title: "Fuel Surcharge Spike — Latin America",
+          severity: "medium",
+          region: "South America",
+          message: "Regional transport costs increased by 14% following diesel fuel price adjustments.",
+          status: "resolved",
+          createdAt: "2025-06-22"
+        },
+        {
+          id: "2025-3",
+          title: "Grain Silo Moisture Alarm — US Midwest",
+          severity: "medium",
+          region: "North America",
+          message: "High humidity required emergency aeration in commercial storage silos.",
+          status: "resolved",
+          createdAt: "2025-09-05"
+        },
+        {
+          id: "2025-4",
+          title: "Bumper Pulse Harvest — South Asia",
+          severity: "low",
+          region: "South Asia",
+          message: "Favorable monsoon rains yielded record pulse and legume surpluses.",
+          status: "resolved",
+          createdAt: "2025-11-14"
+        }
+      ],
+      quickStats: {
+        totalSupplyIndex: 77,
+        activeRisks: 2,
+        regionsMonitored: 45,
+        coursesCompleted: 9,
+        courseProgress: [
+          { id: "c1", title: "Sustainable Agriculture Basics", progress: 60, total: 8, completed: 5 },
+          { id: "c2", title: "Supply Chain Resilience", progress: 30, total: 10, completed: 3 },
+          { id: "c3", title: "Climate Adaptation Strategies", progress: 80, total: 6, completed: 5 }
+        ]
+      },
+      regionData: [
+        { region: "North America", supply: 88, trend: "up" },
+        { region: "Europe", supply: 81, trend: "down" },
+        { region: "East Africa", supply: 58, trend: "stable" },
+        { region: "South Asia", supply: 72, trend: "up" },
+        { region: "South America", supply: 70, trend: "down" },
+        { region: "Southeast Asia", supply: 75, trend: "up" }
+      ]
+    },
+    "2024": {
+      supplyData: [
+        { month: "Jan", grains: 68, vegetables: 74, dairy: 63, proteins: 59 },
+        { month: "Feb", grains: 70, vegetables: 76, dairy: 65, proteins: 61 },
+        { month: "Mar", grains: 66, vegetables: 78, dairy: 62, proteins: 57 },
+        { month: "Apr", grains: 72, vegetables: 80, dairy: 67, proteins: 63 },
+        { month: "May", grains: 75, vegetables: 82, dairy: 69, proteins: 65 },
+        { month: "Jun", grains: 73, vegetables: 79, dairy: 70, proteins: 66 },
+        { month: "Jul", grains: 69, vegetables: 75, dairy: 66, proteins: 61 },
+        { month: "Aug", grains: 71, vegetables: 80, dairy: 68, proteins: 63 },
+        { month: "Sep", grains: 74, vegetables: 83, dairy: 71, proteins: 65 },
+        { month: "Oct", grains: 77, vegetables: 85, dairy: 73, proteins: 68 },
+        { month: "Nov", grains: 76, vegetables: 84, dairy: 72, proteins: 67 },
+        { month: "Dec", grains: 78, vegetables: 86, dairy: 74, proteins: 69 }
+      ],
+      riskAlerts: [
+        {
+          id: "2024-1",
+          title: "El Niño Pacific Anomaly — Pacific Rim",
+          severity: "high",
+          region: "Pacific Rim",
+          message: "Strong El Niño phenomenon altered precipitation patterns across Oceania and Americas.",
+          status: "archived",
+          createdAt: "2024-04-10"
+        },
+        {
+          id: "2024-2",
+          title: "Maritime Canal Rerouting — Red Sea",
+          severity: "high",
+          region: "Middle East",
+          message: "Shipping delays around Cape of Good Hope increased transit times by 12 days.",
+          status: "archived",
+          createdAt: "2024-03-28"
+        },
+        {
+          id: "2024-3",
+          title: "Extreme Early Frost — Southern Cone",
+          severity: "medium",
+          region: "South America",
+          message: "Unseasonal frost damaged citrus and soft fruit orchards across Argentina and Uruguay.",
+          status: "archived",
+          createdAt: "2024-05-19"
+        },
+        {
+          id: "2024-4",
+          title: "Locust Swarm Advisory — Horn of Africa",
+          severity: "high",
+          region: "East Africa",
+          message: "Desert locust swarms threatened pastureland before coordinated aerial spraying.",
+          status: "archived",
+          createdAt: "2024-08-01"
+        },
+        {
+          id: "2024-5",
+          title: "Corn Yield Stabilization — North America",
+          severity: "low",
+          region: "North America",
+          message: "Late monsoon rains saved Midwest corn crop from severe stress.",
+          status: "archived",
+          createdAt: "2024-10-15"
+        }
+      ],
+      quickStats: {
+        totalSupplyIndex: 72,
+        activeRisks: 4,
+        regionsMonitored: 42,
+        coursesCompleted: 6,
+        courseProgress: [
+          { id: "c1", title: "Sustainable Agriculture Basics", progress: 40, total: 8, completed: 3 },
+          { id: "c2", title: "Supply Chain Resilience", progress: 20, total: 10, completed: 2 },
+          { id: "c3", title: "Climate Adaptation Strategies", progress: 50, total: 6, completed: 3 }
+        ]
+      },
+      regionData: [
+        { region: "North America", supply: 84, trend: "up" },
+        { region: "Europe", supply: 76, trend: "down" },
+        { region: "East Africa", supply: 48, trend: "down" },
+        { region: "South Asia", supply: 63, trend: "stable" },
+        { region: "South America", supply: 67, trend: "down" },
+        { region: "Southeast Asia", supply: 65, trend: "down" }
+      ]
+    }
+  };
+
+  res.json(dashboards[year] || dashboards["2026"]);
 });
 
 // 2. Courses API Route
@@ -7256,7 +7417,22 @@ app.post("/api/chat", async (req, res) => {
     const lastMessage = messages[messages.length - 1]?.content || "";
     let reply = "Hello! I am the SecureDish AI Advisor. It looks like the Gemini API Key is not set up in the environment. Here is an educational response based on local intelligence:\n\n";
 
-    if (lastMessage.toLowerCase().includes("drought") || lastMessage.toLowerCase().includes("africa")) {
+    if (lastMessage.toLowerCase().includes("risk assessment") || lastMessage.toLowerCase().includes("assessment")) {
+      reply = `Executive Risk Synthesis & Early Warning Report (SecureDish Intelligence):
+
+1. Global Supply Index:
+The overall aggregate food supply capacity stands at 82%. Core production in North America and Western Europe remains strong (87-91%), while East Africa exhibits severe stress at 52% capacity due to multi-season rainfall deficits.
+
+2. Active Vulnerability Vectors:
+• Drought Warning (East Africa): Cereal yields expected to drop 15-20% in Q3.
+• Port Congestion (Southeast Asia): 10-day logistics bottleneck on rice exports.
+• Fertilizer Deficit (South America): Potash shortages threatening soybean yields.
+
+3. Strategic Guidance:
+• Deploy drought-resilient seed stocks (sorghum, cassava) in East Africa.
+• Expand cold-storage buffer nodes along Southeast Asian maritime corridors.
+• Implement soil micro-dosing and organic compost blends to offset fertilizer scarcity.`;
+    } else if (lastMessage.toLowerCase().includes("drought") || lastMessage.toLowerCase().includes("africa")) {
       reply += "East Africa is currently facing elevated drought risk (Supply index: 52%, Trend: Down). Recommended strategies include:\n1. Cultivating drought-tolerant crops like sorghum, cassava, and millet.\n2. Implementing drip irrigation systems and soil mulching to conserve moisture.\n3. Creating local seed banks and buffer grain stockpiles.";
     } else if (lastMessage.toLowerCase().includes("supply") || lastMessage.toLowerCase().includes("chain") || lastMessage.toLowerCase().includes("resilience")) {
       reply += "Food supply chain resilience relies heavily on cold chain logistics, multi-tier traceability, and supplier diversification. Implementing cold-storage facilities near regional transport hubs dramatically cuts spoilage losses.";
