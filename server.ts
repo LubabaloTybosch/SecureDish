@@ -7106,7 +7106,7 @@ Successful completion of the Portfolio of Evidence, together with formative and 
         duration: "3h 15m",
         lessonsCount: 3,
         thumbnail: "business",
-        tier: "pro",
+        tier: "free",
         lessons: [
           { id: "pl-41", title: "Gross Margin Budgets for Crops & Livestock", duration: "35m", order: 0, videoUrl: null, content: "Calculating income per hectare or head minus direct variable costs." },
           { id: "pl-42", title: "Monthly Cash Flow Forecasting", duration: "35m", order: 1, videoUrl: null, content: "Managing seasonal cash troughs, working capital lines, and harvest payout cycles." },
@@ -7348,7 +7348,7 @@ Successful completion of the Portfolio of Evidence, together with formative and 
         duration: "3h 25m",
         lessonsCount: 3,
         thumbnail: "business",
-        tier: "pro",
+        tier: "free",
         lessons: [
           { id: "pl-92", title: "Farm Labor Legislation & Employment Contracts", duration: "35m", order: 0, videoUrl: null, content: "Basic Conditions of Employment Act, Sectoral Determination for agriculture, and legal contracts." },
           { id: "pl-93", title: "Occupational Health & Safety (OHSA) Compliance", duration: "35m", order: 1, videoUrl: null, content: "Establishing safety committees, incident reporting, medical surveillance, and hazard mitigation." },

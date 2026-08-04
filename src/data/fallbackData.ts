@@ -1368,7 +1368,7 @@ export const FALLBACK_COURSES: Course[] = [
     "duration": "3h 15m",
     "lessonsCount": 3,
     "thumbnail": "business",
-    "tier": "pro",
+    "tier": "free",
     "lessons": [
       {
         "id": "pl-41",
@@ -1960,7 +1960,7 @@ export const FALLBACK_COURSES: Course[] = [
     "duration": "3h 25m",
     "lessonsCount": 3,
     "thumbnail": "business",
-    "tier": "pro",
+    "tier": "free",
     "lessons": [
       {
         "id": "pl-92",
