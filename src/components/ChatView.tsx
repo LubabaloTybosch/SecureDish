@@ -1,5 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Message, UserPlan, UserProfile } from "../types";
+import { useVoice } from "../utils/useVoice";
+import VoiceLanguageBar from "./VoiceLanguageBar";
+import VoicePlayerButton from "./VoicePlayerButton";
 import {
   MessageSquare,
   Send,
@@ -13,8 +16,13 @@ import {
   Lock,
   Crown,
   Zap,
-  ShieldCheck,
-  Check
+  Check,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
+  Radio,
+  Globe
 } from "lucide-react";
 
 interface ChatViewProps {
@@ -28,7 +36,7 @@ export default function ChatView({ userPlan, setUserPlan, currentUser }: ChatVie
     {
       id: "init-msg",
       sender: "ai",
-      content: "Hello! I am your SecureDish AI Food Security Advisor.\n\nI can help you analyze supply chain vulnerabilities, propose regenerative agricultural strategies, model climate adaptation, or walk you through details in our training catalog. How can I assist you with sustainable development or risk intelligence today?",
+      content: "Hello! I am your Voice-Driven SecureDish AI Food Security Advisor.\n\nI support text and voice intelligence in 30+ languages. You can speak to me directly using the microphone or listen to my responses aloud. How can I assist you with sustainable development, risk intelligence, or agricultural policy today?",
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     },
   ]);
@@ -36,6 +44,18 @@ export default function ChatView({ userPlan, setUserPlan, currentUser }: ChatVie
   const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Initialize voice engine hook
+  const voice = useVoice({
+    initialLanguageCode: "en-US",
+    onTranscriptComplete: (transcript) => {
+      if (transcript.trim()) {
+        setInputValue(transcript);
+        // Automatically send voice query
+        handleSendMessage(transcript);
+      }
+    }
+  });
 
   const quickPrompts = [
     { text: "Mitigate East Africa drought impact", query: "How can East Africa mitigate the impact of the ongoing drought warning on crop yields?" },
@@ -47,8 +67,18 @@ export default function ChatView({ userPlan, setUserPlan, currentUser }: ChatVie
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
+  // Update input text while user is speaking
+  useEffect(() => {
+    if (voice.interimTranscript) {
+      setInputValue(voice.interimTranscript);
+    }
+  }, [voice.interimTranscript]);
+
   const handleSendMessage = async (textToSend: string) => {
     if (!textToSend.trim() || loading) return;
+
+    // Stop microphone if currently listening
+    voice.stopListening();
 
     const userMessage: Message = {
       id: `user-${Date.now()}`,
@@ -71,6 +101,8 @@ export default function ChatView({ userPlan, setUserPlan, currentUser }: ChatVie
             sender: m.sender,
             content: m.content,
           })),
+          language: voice.selectedLanguage.name,
+          languageCode: voice.selectedLanguage.code
         }),
       });
 
@@ -81,14 +113,13 @@ export default function ChatView({ userPlan, setUserPlan, currentUser }: ChatVie
       }
 
       if (!replyText) {
-        // Fallback intelligence for static deployments (e.g., GitHub Pages)
         const queryLower = textToSend.toLowerCase();
         if (queryLower.includes("drought") || queryLower.includes("africa")) {
-          replyText = "East Africa is currently facing elevated drought risk (Supply index: 52%, Trend: Down). Recommended strategies include:\n\n1. Cultivating drought-tolerant crops like sorghum, cassava, and millet.\n2. Implementing drip irrigation systems and soil mulching to conserve moisture.\n3. Creating local seed banks and buffer grain stockpiles.";
+          replyText = `East Africa is facing elevated drought risk in ${voice.selectedLanguage.name} context (Supply index: 52%, Trend: Down). Recommended strategies include:\n\n1. Cultivating drought-tolerant crops like sorghum, cassava, and millet.\n2. Implementing drip irrigation systems and soil mulching to conserve moisture.\n3. Creating local seed banks and buffer grain stockpiles.`;
         } else if (queryLower.includes("supply") || queryLower.includes("logistics")) {
-          replyText = "Food supply chain resilience relies heavily on cold chain logistics, multi-tier traceability, and supplier diversification. Implementing cold-storage facilities near regional transport hubs dramatically cuts spoilage losses.";
+          replyText = `Food supply chain resilience (${voice.selectedLanguage.name}) relies heavily on cold chain logistics, multi-tier traceability, and supplier diversification. Implementing cold-storage facilities near regional transport hubs dramatically cuts spoilage losses.`;
         } else {
-          replyText = "SecureDish focuses on three main action paths: monitoring regional supply, assessing environmental/geopolitical risk alerts, and raising knowledge through our open courses (Sustainable Agriculture, Supply Chain Resilience, Climate Adaptation). How can I assist you with sustainable crop management, trade bottlenecks, or climate adaptation strategies today?";
+          replyText = `SecureDish Voice Advisor (${voice.selectedLanguage.name}): I am ready to assist you. Ask me about sustainable crop management, regional trade bottlenecks, or climate adaptation strategies in any language!`;
         }
       }
 
@@ -100,10 +131,17 @@ export default function ChatView({ userPlan, setUserPlan, currentUser }: ChatVie
       };
 
       setMessages((prev) => [...prev, aiMessage]);
+
+      // Speak response automatically if autoSpeak is enabled
+      if (voice.autoSpeak) {
+        setTimeout(() => {
+          voice.speakText(replyText, aiMessage.id, voice.selectedLanguage.code);
+        }, 300);
+      }
     } catch (err) {
-      console.error("Chat API Error, using fallback intelligence:", err);
+      console.error("Chat API Error, using fallback voice intelligence:", err);
       const queryLower = textToSend.toLowerCase();
-      let fallbackText = "SecureDish AI Food Security Advisor: I am analyzing your request locally. How can I assist you with agricultural risk intelligence or sustainable supply chain strategies today?";
+      let fallbackText = `SecureDish AI Food Security Advisor (${voice.selectedLanguage.name}): How can I assist you with agricultural risk intelligence or sustainable supply chain strategies today?`;
       if (queryLower.includes("drought") || queryLower.includes("africa")) {
         fallbackText = "East Africa is currently facing elevated drought risk (Supply index: 52%, Trend: Down). Recommended strategies include:\n\n1. Cultivating drought-tolerant crops like sorghum, cassava, and millet.\n2. Implementing drip irrigation systems and soil mulching to conserve moisture.\n3. Creating local seed banks and buffer grain stockpiles.";
       }
@@ -115,6 +153,12 @@ export default function ChatView({ userPlan, setUserPlan, currentUser }: ChatVie
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
       setMessages((prev) => [...prev, errorMessage]);
+
+      if (voice.autoSpeak) {
+        setTimeout(() => {
+          voice.speakText(fallbackText, errorMessage.id, voice.selectedLanguage.code);
+        }, 300);
+      }
     } finally {
       setLoading(false);
     }
@@ -190,7 +234,7 @@ export default function ChatView({ userPlan, setUserPlan, currentUser }: ChatVie
 
   // If user is Pro Plan, render the Full Gemini Chat Interface
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8 space-y-6 flex flex-col h-[calc(100vh-10rem)]">
+    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8 space-y-4 flex flex-col min-h-[calc(100vh-10rem)]">
       {/* Upper header */}
       <div className="flex items-center justify-between border-b border-sand-dark pb-4 shrink-0">
         <div className="flex items-center gap-3">
@@ -199,10 +243,10 @@ export default function ChatView({ userPlan, setUserPlan, currentUser }: ChatVie
           </div>
           <div>
             <h1 className="font-display text-xl md:text-2xl font-extrabold tracking-tight text-charcoal">
-              AI Sustainability Advisor
+              AI Sustainability Advisor (Voice-Driven)
             </h1>
             <p className="text-charcoal-light text-xs mt-0.5">
-              Discuss risk logs, sustainable farming models, and adaptation policy with specialized Gemini intelligence.
+              Speak or type queries in any language (30+ supported). Live voice synthesis and recognition active.
             </p>
           </div>
         </div>
@@ -213,8 +257,23 @@ export default function ChatView({ userPlan, setUserPlan, currentUser }: ChatVie
         </span>
       </div>
 
+      {/* Voice Language Control Bar */}
+      <VoiceLanguageBar
+        selectedLanguage={voice.selectedLanguage}
+        onLanguageChange={voice.setSelectedLanguage}
+        autoSpeak={voice.autoSpeak}
+        onAutoSpeakToggle={voice.setAutoSpeak}
+        speakingSpeed={voice.speakingSpeed}
+        onSpeedChange={voice.setSpeakingSpeed}
+        isSpeaking={voice.isSpeaking}
+        isListening={voice.isListening}
+        onStopSpeaking={voice.stopSpeaking}
+        title="Voice Advisor Language & Audio Engine"
+        subtitle="Speak your prompt or listen to AI responses aloud in 30+ languages"
+      />
+
       {/* Main split work area */}
-      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-4 gap-6 items-stretch">
+      <div className="flex-1 min-h-[420px] grid grid-cols-1 lg:grid-cols-4 gap-6 items-stretch">
         {/* Left Column: Quick queries list */}
         <div className="hidden lg:flex flex-col gap-4 lg:col-span-1 border-r border-sand-dark pr-6">
           <div className="flex items-center gap-2 text-xs font-bold text-charcoal uppercase tracking-wider pb-1">
@@ -231,7 +290,7 @@ export default function ChatView({ userPlan, setUserPlan, currentUser }: ChatVie
               >
                 <span>{p.text}</span>
                 <span className="inline-flex items-center gap-1 text-[10px] text-sage font-bold uppercase tracking-wider mt-2 group-hover:translate-x-1 transition-transform">
-                  Ask Advisor <ArrowRight className="h-3 w-3" />
+                  Ask Advisor ({voice.selectedLanguage.flag}) <ArrowRight className="h-3 w-3" />
                 </span>
               </button>
             ))}
@@ -261,7 +320,7 @@ export default function ChatView({ userPlan, setUserPlan, currentUser }: ChatVie
                   </div>
 
                   {/* Bubble content */}
-                  <div className="space-y-1">
+                  <div className="space-y-1.5 flex-1">
                     <div
                       className={`p-4 rounded-2xl text-xs sm:text-sm leading-relaxed whitespace-pre-line border ${
                         isAi
@@ -271,10 +330,31 @@ export default function ChatView({ userPlan, setUserPlan, currentUser }: ChatVie
                     >
                       {m.content}
                     </div>
-                    {/* Timestamp */}
-                    <div className={`text-[10px] text-charcoal-light/40 font-medium flex items-center gap-1 ${!isAi ? "justify-end" : ""}`}>
-                      <Clock className="h-3 w-3" />
-                      <span>{m.timestamp}</span>
+
+                    {/* Voice Output & Timestamp bar */}
+                    <div className={`text-[10px] text-charcoal-light font-medium flex items-center justify-between gap-2 ${!isAi ? "flex-row-reverse" : ""}`}>
+                      {isAi ? (
+                        <VoicePlayerButton
+                          text={m.content}
+                          id={m.id}
+                          isSpeaking={voice.isSpeaking}
+                          isPaused={voice.isPaused}
+                          currentSpeakingId={voice.currentSpeakingId}
+                          selectedLanguage={voice.selectedLanguage}
+                          onToggle={voice.toggleSpeaking}
+                          onStop={voice.stopSpeaking}
+                          variant="compact"
+                        />
+                      ) : (
+                        <span className="text-[10px] text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                          User Prompt
+                        </span>
+                      )}
+
+                      <div className="flex items-center gap-1 text-charcoal-light/60">
+                        <Clock className="h-3 w-3" />
+                        <span>{m.timestamp}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -291,7 +371,7 @@ export default function ChatView({ userPlan, setUserPlan, currentUser }: ChatVie
                   <div className="p-4 rounded-2xl rounded-tl-none bg-sand border border-sand-dark text-charcoal flex items-center gap-2.5">
                     <RefreshCw className="h-4 w-4 animate-spin text-sage" />
                     <span className="text-xs font-semibold animate-pulse text-charcoal-light">
-                      Advisor is researching indicators...
+                      Advisor is formulating voice response in {voice.selectedLanguage.name}...
                     </span>
                   </div>
                 </div>
@@ -300,6 +380,27 @@ export default function ChatView({ userPlan, setUserPlan, currentUser }: ChatVie
             <div ref={scrollRef} />
           </div>
 
+          {/* Listening Overlay Preview */}
+          {voice.isListening && (
+            <div className="bg-rose-50 border-t border-rose-200 p-3 px-6 flex items-center justify-between gap-3 text-rose-900 animate-fade-in">
+              <div className="flex items-center gap-3">
+                <div className="h-3 w-3 rounded-full bg-rose-600 animate-ping shrink-0" />
+                <div className="text-xs font-semibold">
+                  <span className="font-extrabold uppercase text-rose-700">Listening ({voice.selectedLanguage.name}):</span>{" "}
+                  <span className="italic">{voice.interimTranscript || "Speak your query now..."}</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={voice.stopListening}
+                className="text-xs font-extrabold text-rose-700 hover:text-rose-900 underline shrink-0"
+              >
+                Stop Mic
+              </button>
+            </div>
+          )}
+
           {/* Quick inputs footer */}
           <div className="bg-sand-dark/40 border-t border-sand-dark p-4 sm:px-6">
             <form
@@ -307,17 +408,40 @@ export default function ChatView({ userPlan, setUserPlan, currentUser }: ChatVie
                 e.preventDefault();
                 handleSendMessage(inputValue);
               }}
-              className="flex gap-3 items-center"
+              className="flex gap-2.5 items-center"
             >
+              {/* Microphone Voice Input Button */}
+              <button
+                type="button"
+                id="btn-voice-mic-chat"
+                onClick={() => {
+                  if (voice.isListening) {
+                    voice.stopListening();
+                  } else {
+                    voice.startListening();
+                  }
+                }}
+                className={`h-10 px-3 rounded-xl flex items-center justify-center font-bold text-xs gap-1.5 shadow-sm transition-all shrink-0 ${
+                  voice.isListening
+                    ? "bg-rose-600 hover:bg-rose-700 text-white animate-pulse"
+                    : "bg-white hover:bg-sand border border-sand-dark text-charcoal"
+                }`}
+                title={`Click to speak query in ${voice.selectedLanguage.name}`}
+              >
+                <Mic className={`h-4 w-4 ${voice.isListening ? "text-white animate-bounce" : "text-sage"}`} />
+                <span className="hidden sm:inline">{voice.isListening ? "Listening..." : "Voice Input"}</span>
+              </button>
+
               <input
                 id="chat-user-input"
                 type="text"
                 disabled={loading}
-                placeholder="Ask about East African millet, logistics checklists, or regional supply trends..."
+                placeholder={`Speak or type query in ${voice.selectedLanguage.name} (${voice.selectedLanguage.nativeName})...`}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                className="flex-1 bg-white border border-sand-dark rounded-xl px-4 py-2.5 text-sm text-charcoal placeholder-charcoal-light/40 focus:outline-none focus:border-sage transition-all disabled:opacity-60"
+                className="flex-1 bg-white border border-sand-dark rounded-xl px-4 py-2.5 text-sm text-charcoal placeholder-charcoal-light/50 focus:outline-none focus:border-sage transition-all disabled:opacity-60"
               />
+
               <button
                 id="chat-send-btn"
                 type="submit"

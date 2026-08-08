@@ -7406,19 +7406,21 @@ app.get("/api/resources", (req, res) => {
 
 // 4. AI Advisor Chat API Route
 app.post("/api/chat", async (req, res) => {
-  const { messages } = req.body;
+  const { messages, language, languageCode } = req.body;
   if (!messages || !Array.isArray(messages)) {
     return res.status(400).json({ error: "Invalid request. 'messages' array is required." });
   }
 
+  const requestedLang = language || languageCode || "English";
+
   const ai = getAiClient();
   if (!ai) {
-    // If Gemini key is not set, provide an elegant mock/educational response
+    // If Gemini key is not set, provide an educational response
     const lastMessage = messages[messages.length - 1]?.content || "";
-    let reply = "Hello! I am the SecureDish AI Advisor. It looks like the Gemini API Key is not set up in the environment. Here is an educational response based on local intelligence:\n\n";
+    let reply = `SecureDish AI Advisor (${requestedLang}):\n\n`;
 
     if (lastMessage.toLowerCase().includes("risk assessment") || lastMessage.toLowerCase().includes("assessment")) {
-      reply = `Executive Risk Synthesis & Early Warning Report (SecureDish Intelligence):
+      reply = `Executive Risk Synthesis & Early Warning Report (SecureDish Intelligence - ${requestedLang}):
 
 1. Global Supply Index:
 The overall aggregate food supply capacity stands at 82%. Core production in North America and Western Europe remains strong (87-91%), while East Africa exhibits severe stress at 52% capacity due to multi-season rainfall deficits.
@@ -7437,7 +7439,7 @@ The overall aggregate food supply capacity stands at 82%. Core production in Nor
     } else if (lastMessage.toLowerCase().includes("supply") || lastMessage.toLowerCase().includes("chain") || lastMessage.toLowerCase().includes("resilience")) {
       reply += "Food supply chain resilience relies heavily on cold chain logistics, multi-tier traceability, and supplier diversification. Implementing cold-storage facilities near regional transport hubs dramatically cuts spoilage losses.";
     } else {
-      reply += "SecureDish focuses on three main action paths: monitoring regional supply, assessing environmental/geopolitical risk alerts, and raising knowledge through our open courses (Sustainable Agriculture, Supply Chain Resilience, Climate Adaptation). How can I assist you with sustainable crop management, trade bottlenecks, or climate adaptation strategies today?";
+      reply += `SecureDish focuses on three main action paths: monitoring regional supply, assessing environmental/geopolitical risk alerts, and raising knowledge through our open courses. How can I assist you with sustainable crop management, trade bottlenecks, or climate adaptation strategies today?`;
     }
 
     return res.json({ text: reply });
@@ -7445,7 +7447,7 @@ The overall aggregate food supply capacity stands at 82%. Core production in Nor
 
   try {
     // Prepare the system instruction
-    const systemInstruction = `You are the SecureDish Food Security & Sustainability Advisor. 
+    const systemInstruction = `You are the SecureDish Voice-Driven Food Security & Sustainability Advisor. 
 You are an expert in agriculture, sustainable farming, climatology, supply chain logistics, and food equity.
 Your goal is to provide highly scientific, accurate, practical, and constructive advice.
 You have access to current SecureDish dashboard state:
@@ -7453,7 +7455,9 @@ You have access to current SecureDish dashboard state:
 - Grains, vegetables, dairy, and proteins are monitored.
 - Active risks include drought in East Africa, port congestion in Southeast Asia, and fertilizer shortage in South America.
 
-Use this context when answering where relevant. Keep your responses structured with bullet points and clear, professional language.`;
+CRITICAL LANGUAGE REQUIREMENT:
+You MUST respond ENTIRELY in the following user requested language: ${requestedLang}.
+Ensure your response is clear, structured, natural for voice reading, and suitable for Text-to-Speech audio output in ${requestedLang}.`;
 
     // Map message history to GenAI SDK contents format
     // GoogleGenAI SDK expectations: { contents: [{ role: 'user', parts: [{ text: '...' }] }] }

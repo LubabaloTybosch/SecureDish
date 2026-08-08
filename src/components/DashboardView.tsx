@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { ActiveView, SupplyDataPoint, RiskAlert, QuickStats, RegionDataPoint } from "../types";
 import { FALLBACK_DASHBOARD, FALLBACK_DASHBOARD_BY_YEAR } from "../data/fallbackData";
+import { useVoice } from "../utils/useVoice";
+import { SUPPORTED_VOICE_LANGUAGES } from "../utils/voiceLanguages";
+import VoicePlayerButton from "./VoicePlayerButton";
+import VoiceLanguageBar from "./VoiceLanguageBar";
 import {
   Activity,
   AlertTriangle,
@@ -13,7 +17,11 @@ import {
   RefreshCw,
   Clock,
   ArrowRight,
-  Calendar
+  Calendar,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -42,6 +50,18 @@ export default function DashboardView({ setActiveView }: DashboardViewProps) {
 
   const [aiAnalysis, setAiAnalysis] = useState<string>("");
   const [generatingAi, setGeneratingAi] = useState(false);
+  const [voiceCustomPrompt, setVoiceCustomPrompt] = useState<string>("");
+
+  // Initialize Voice Engine for AI Assessment
+  const voice = useVoice({
+    initialLanguageCode: "en-US",
+    onTranscriptComplete: (transcript) => {
+      if (transcript.trim()) {
+        setVoiceCustomPrompt(transcript);
+        triggerAiAnalysisWithPrompt(transcript);
+      }
+    }
+  });
 
   const fetchData = async (year: string = selectedYear) => {
     setLoading(true);
@@ -97,10 +117,12 @@ ${alertsSummary}
 • Deploy precision fertilizer allocation & emergency grain reserve funds for immediate stabilization.`;
   };
 
-  const triggerAiAnalysis = async () => {
+  const triggerAiAnalysisWithPrompt = async (customPrompt?: string) => {
     if (generatingAi) return;
     setGeneratingAi(true);
     setAiAnalysis("");
+    const promptText = customPrompt || `Please perform a comprehensive risk assessment for reporting year ${selectedYear} based on regional indices and active alerts in ${voice.selectedLanguage.name}.`;
+
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -109,28 +131,51 @@ ${alertsSummary}
           messages: [
             {
               sender: "user",
-              content: `Please perform a comprehensive risk assessment for reporting year ${selectedYear} based on regional indices and active alerts.`,
+              content: promptText,
             },
           ],
+          language: voice.selectedLanguage.name,
+          languageCode: voice.selectedLanguage.code
         }),
       });
+
+      let finalReportText = "";
 
       if (response.ok) {
         const resData = await response.json();
         if (resData && resData.text) {
-          setAiAnalysis(resData.text);
-          return;
+          finalReportText = resData.text;
         }
       }
-      // Fallback if response is not OK or resData.text is missing
-      setAiAnalysis(generateRiskAssessmentReport(selectedYear, data));
+
+      if (!finalReportText) {
+        finalReportText = generateRiskAssessmentReport(selectedYear, data);
+      }
+
+      setAiAnalysis(finalReportText);
+
+      // Speak response aloud if autoSpeak is enabled
+      if (voice.autoSpeak) {
+        setTimeout(() => {
+          voice.speakText(finalReportText, "assessment-report", voice.selectedLanguage.code);
+        }, 300);
+      }
     } catch (err) {
       console.error("AI Analysis API call failed, using local risk synthesis engine:", err);
-      setAiAnalysis(generateRiskAssessmentReport(selectedYear, data));
+      const fallbackReport = generateRiskAssessmentReport(selectedYear, data);
+      setAiAnalysis(fallbackReport);
+
+      if (voice.autoSpeak) {
+        setTimeout(() => {
+          voice.speakText(fallbackReport, "assessment-report", voice.selectedLanguage.code);
+        }, 300);
+      }
     } finally {
       setGeneratingAi(false);
     }
   };
+
+  const triggerAiAnalysis = () => triggerAiAnalysisWithPrompt();
 
   if (loading || !data) {
     return (
@@ -476,76 +521,159 @@ ${alertsSummary}
           <div className="absolute top-0 right-0 -z-0 h-40 w-40 rounded-full bg-sage/20 blur-2xl" />
 
           <div className="relative z-10">
-            <div className="flex items-center gap-2 border-b border-white/15 pb-4 mb-5">
-              <div className="h-8 w-8 rounded-lg bg-sage/30 flex items-center justify-center text-emerald-300 shadow-sm">
-                <Sparkles className="h-4.5 w-4.5" />
+            <div className="flex items-center justify-between border-b border-white/15 pb-4 mb-4">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-sage/30 flex items-center justify-center text-emerald-300 shadow-sm">
+                  <Sparkles className="h-4.5 w-4.5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white tracking-wide">Voice AI Assessment</h3>
+                  <p className="text-[10px] text-emerald-200/80">Voice-driven early warning report ({voice.selectedLanguage.flag} {voice.selectedLanguage.name})</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-base font-bold text-white tracking-wide">AI Risk Intelligence</h3>
-                <p className="text-[10px] text-emerald-200/80">Real-time early warning assessment report</p>
-              </div>
+
+              {/* Language Picker Dropdown */}
+              <select
+                value={voice.selectedLanguage.code}
+                onChange={(e) => {
+                  const lang = SUPPORTED_VOICE_LANGUAGES.find((l) => l.code === e.target.value);
+                  if (lang) voice.setSelectedLanguage(lang);
+                }}
+                className="bg-white/10 text-white text-xs font-semibold rounded-lg px-2.5 py-1 border border-white/20 focus:outline-none focus:bg-charcoal transition-all"
+              >
+                {SUPPORTED_VOICE_LANGUAGES.map((lang) => (
+                  <option key={lang.code} value={lang.code} className="bg-charcoal text-white">
+                    {lang.flag} {lang.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
+            {/* Listening Indicator Bar if active */}
+            {voice.isListening && (
+              <div className="mb-4 bg-rose-500/20 border border-rose-400/40 rounded-xl p-2.5 text-xs text-rose-100 flex items-center gap-2 animate-pulse">
+                <Mic className="h-4 w-4 text-rose-400 animate-bounce" />
+                <span className="font-bold text-rose-300">Dictating Assessment Directive:</span>
+                <span className="italic font-medium truncate">{voice.interimTranscript || "Listening..."}</span>
+              </div>
+            )}
+
             {aiAnalysis ? (
-              <div className="text-xs leading-relaxed text-sand-dark space-y-3.5 max-h-[260px] overflow-y-auto pr-2 custom-scrollbar">
-                {aiAnalysis.split("\n\n").map((para, i) => {
-                  const isHeading = para.match(/^(\d+\.|[A-Z\s]{4,}:|Executive)/);
-                  return (
-                    <div key={i} className="text-sand/95 font-normal leading-relaxed">
-                      {isHeading ? (
-                        <p className="whitespace-pre-line text-emerald-300 font-bold text-xs tracking-wide">
-                          {para}
-                        </p>
-                      ) : (
-                        <p className="whitespace-pre-line text-emerald-50/90 font-medium text-xs leading-relaxed">
-                          {para}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
+              <div className="space-y-3">
+                {/* Voice Player Bar for AI Assessment */}
+                <div className="bg-white/10 rounded-xl p-2.5 border border-white/15 flex items-center justify-between gap-2">
+                  <VoicePlayerButton
+                    text={aiAnalysis}
+                    id="assessment-report"
+                    isSpeaking={voice.isSpeaking}
+                    isPaused={voice.isPaused}
+                    currentSpeakingId={voice.currentSpeakingId}
+                    selectedLanguage={voice.selectedLanguage}
+                    onToggle={voice.toggleSpeaking}
+                    onStop={voice.stopSpeaking}
+                    variant="card-header"
+                  />
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => voice.setAutoSpeak(!voice.autoSpeak)}
+                      className={`px-2 py-1 rounded text-[10px] font-bold border transition-all ${
+                        voice.autoSpeak
+                          ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/40"
+                          : "bg-white/5 text-white/50 border-white/10"
+                      }`}
+                      title="Auto-read new AI assessments aloud"
+                    >
+                      {voice.autoSpeak ? "Auto-Read ON" : "Auto-Read OFF"}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="text-xs leading-relaxed text-sand-dark space-y-3.5 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
+                  {aiAnalysis.split("\n\n").map((para, i) => {
+                    const isHeading = para.match(/^(\d+\.|[A-Z\s]{4,}:|Executive)/);
+                    return (
+                      <div key={i} className="text-sand/95 font-normal leading-relaxed">
+                        {isHeading ? (
+                          <p className="whitespace-pre-line text-emerald-300 font-bold text-xs tracking-wide">
+                            {para}
+                          </p>
+                        ) : (
+                          <p className="whitespace-pre-line text-emerald-50/90 font-medium text-xs leading-relaxed">
+                            {para}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             ) : (
-              <div className="py-8 flex flex-col items-center text-center gap-3">
+              <div className="py-6 flex flex-col items-center text-center gap-3">
                 <Sparkles className="h-10 w-10 text-emerald-400 animate-pulse" />
                 <p className="text-xs text-emerald-100/80 max-w-xs leading-relaxed font-medium">
-                  Synthesize regional indices, threat streams, and climate volatility into an early-warning risk report.
+                  Generate a voice-synthesized assessment report in {voice.selectedLanguage.name} ({voice.selectedLanguage.nativeName}).
                 </p>
               </div>
             )}
           </div>
 
-          <div className="relative z-10 pt-4 border-t border-white/15 mt-5">
-            <button
-              id="dash-gen-ai-btn"
-              onClick={triggerAiAnalysis}
-              disabled={generatingAi}
-              className="group flex w-full items-center justify-center gap-2 rounded-xl bg-sage hover:bg-sage-light text-white font-semibold py-3 text-sm shadow-lg transition-all focus:outline-none disabled:opacity-50 active:scale-[0.99]"
-            >
-              {generatingAi ? (
-                <>
-                  <RefreshCw className="h-4 w-4 animate-spin text-white" />
-                  <span className="text-white">Synthesizing Indicators...</span>
-                </>
-              ) : aiAnalysis ? (
-                <>
-                  <RefreshCw className="h-4 w-4 text-white" />
-                  <span className="text-white">Regenerate Assessment</span>
-                </>
-              ) : (
-                <>
-                  <span className="text-white">Generate AI Assessment</span>
-                  <ArrowRight className="h-4 w-4 text-white transition-transform group-hover:translate-x-1" />
-                </>
-              )}
-            </button>
+          <div className="relative z-10 pt-4 border-t border-white/15 mt-5 space-y-2">
+            <div className="flex gap-2">
+              {/* Mic dictation button for assessment */}
+              <button
+                type="button"
+                id="btn-voice-mic-dash"
+                onClick={() => {
+                  if (voice.isListening) {
+                    voice.stopListening();
+                  } else {
+                    voice.startListening();
+                  }
+                }}
+                className={`px-3 py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all ${
+                  voice.isListening
+                    ? "bg-rose-600 hover:bg-rose-700 text-white animate-pulse"
+                    : "bg-white/10 hover:bg-white/20 text-emerald-200 border border-white/20"
+                }`}
+                title="Speak custom directive for AI Assessment"
+              >
+                <Mic className={`h-4 w-4 ${voice.isListening ? "text-white animate-bounce" : "text-emerald-300"}`} />
+                <span className="hidden sm:inline">{voice.isListening ? "Listening..." : "Dictate"}</span>
+              </button>
+
+              <button
+                id="dash-gen-ai-btn"
+                onClick={triggerAiAnalysis}
+                disabled={generatingAi}
+                className="group flex-1 flex items-center justify-center gap-2 rounded-xl bg-sage hover:bg-sage-light text-white font-semibold py-3 text-sm shadow-lg transition-all focus:outline-none disabled:opacity-50 active:scale-[0.99]"
+              >
+                {generatingAi ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin text-white" />
+                    <span className="text-white">Synthesizing ({voice.selectedLanguage.flag})...</span>
+                  </>
+                ) : aiAnalysis ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 text-white" />
+                    <span className="text-white">Regenerate Assessment</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-white">Generate Voice Assessment</span>
+                    <ArrowRight className="h-4 w-4 text-white transition-transform group-hover:translate-x-1" />
+                  </>
+                )}
+              </button>
+            </div>
+
             {aiAnalysis && (
               <button
                 id="dash-go-chat-btn"
                 onClick={() => setActiveView("chat")}
-                className="mt-2.5 flex w-full items-center justify-center gap-1.5 text-xs font-bold text-emerald-300 hover:text-white transition-colors"
+                className="flex w-full items-center justify-center gap-1.5 text-xs font-bold text-emerald-300 hover:text-white transition-colors pt-1"
               >
-                Discuss assessment with AI Advisor
+                Discuss assessment in AI Voice Advisor →
               </button>
             )}
           </div>
